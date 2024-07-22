@@ -2,6 +2,8 @@
 $scriptName = 'createSMBView'
 $repoURL = 'https://raw.githubusercontent.com/cohesity/community-automation-samples/main/powershell'
 (Invoke-WebRequest -UseBasicParsing -Uri "$repoUrl/$scriptName/$scriptName.ps1").content | Out-File "$scriptName.ps1"; (Get-Content "$scriptName.ps1") | Set-Content "$scriptName.ps1"
+(Invoke-WebRequest -UseBasicParsing -Uri "$repoUrl/ProtectView/ProtectView.ps1").content | Out-File ProtectView.ps1; (Get-Content ProtectView.ps1) | Set-Content ProtectView.ps1
+(Invoke-WebRequest -UseBasicParsing -Uri "$repoUrl/backupNow/backupNow.ps1").content | Out-File backupNow.ps1; (Get-Content backupNow.ps1) | Set-Content backupNow.ps1
 (Invoke-WebRequest -UseBasicParsing -Uri "$repoUrl/cohesity-api/cohesity-api.ps1").content | Out-File cohesity-api.ps1; (Get-Content cohesity-api.ps1) | Set-Content cohesity-api.ps1
 # End download commands
 
@@ -27,3 +29,11 @@ $file.SetLength(100gb)
 $file.Close()
 Get-Item $fullpath
 }
+./ProtectView.ps1 -vip "cohesity-01" -username admin -viewName $ViewNameNew -jobname "View Backup" -policyName "Bronze"
+start-sleep -seconds 10
+./backupNow.ps1 -vip "cohesity-01" -username admin -jobName 'View Backup"
+start-sleep -seconds 10
+./backupNow.ps1 -vip "cohesity-01" -username admin -jobName 'View Backup"
+start-sleep -seconds 10
+./backupNow.ps1 -vip "cohesity-01" -username admin -jobName 'View Backup"
+
