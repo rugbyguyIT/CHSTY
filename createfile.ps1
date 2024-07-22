@@ -6,21 +6,21 @@ $repoURL = 'https://raw.githubusercontent.com/cohesity/community-automation-samp
 # End download commands
 
 $ViewNameNew = read-host "What is the view name?"
-$VIPNAME = cohesity-01
+$VIPNAME = "cohesity-01"
 ./createSMBView.ps1 -vip $VIPNAME -username admin -viewName $ViewNameNew
 
-$PSPAth = "\\cohesity-01\" & $ViewNameNew
-new-PSDrive -Name "Z" -Root $PSPath -Persist -PSProvider "FileSystem"
+$PSPAth = "\\cohesity-01\" + $ViewNameNew
+new-PSDrive -Name "X" -Root $PSPath -Persist -PSProvider "FileSystem"
 
 $FileCount= read-host "How many files do you want created?"
 $filename1 = read-host "File Name?"
 $fileext = Read-Host "File Extension"
-'$path = read-host "Where do you want the files created"
+#$path = read-host "Where do you want the files created"
 
 
 for ($num = 1;$num -le $FileCount ;$num++){
 $filename = $filename1 + $num
-$fullpath = "z:\" + $filename + "." + $fileext
+$fullpath = "X:\" + $filename + "." + $fileext
 Write-Host $fullpath
 $file = [io.file]::Create($fullpath)
 $file.SetLength(100gb)
