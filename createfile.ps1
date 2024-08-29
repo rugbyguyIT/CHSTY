@@ -31,9 +31,9 @@ Get-Item $fullpath
 }
 ./ProtectView.ps1 -vip "cohesity-01" -username admin -viewName $ViewNameNew -jobname "View Backup" -policyName "Bronze"
 start-sleep -seconds 10
-./backupNow.ps1 -vip "cohesity-01" -username admin -jobName 'View Backup"
+./backupNow.ps1 -vip "cohesity-01" -username admin -jobName "View Backup"
 start-sleep -seconds 10
-./backupNow.ps1 -vip "cohesity-01" -username admin -jobName 'View Backup"
+./backupNow.ps1 -vip "cohesity-01" -username admin -jobName "View Backup"
 start-sleep -seconds 10
-./backupNow.ps1 -vip "cohesity-01" -username admin -jobName 'View Backup"
+./backupNow.ps1 -vip "cohesity-01" -username admin -jobName "View Backup"
 
