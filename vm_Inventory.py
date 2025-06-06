@@ -18,27 +18,16 @@ def get_vcenter_vms(host, user, password):
             if isinstance(item, vim.Folder):
                 local_vms.extend(collect_vms_from_folder(item))
             elif isinstance(item, vim.VirtualMachine):
-                disk_usage_bytes = 0
                 try:
-                    for dev in item.config.hardware.device:
-                        if isinstance(dev, vim.vm.device.VirtualDisk):
-                            backing = dev.backing
-                            # Skip delta/snapshot disks
-                            if hasattr(backing, 'parent') and backing.parent:
-                                continue
-                            if hasattr(backing, 'fileName'):
-                                # Use allocated size if available
-                                if hasattr(backing, 'capacityInBytes'):
-                                    disk_usage_bytes += backing.capacityInBytes
+                    # Best available API metric for actual space used
+                    used_space = item.storage.usedSpace / (1024 ** 3)  # bytes to GB
                 except:
-                    pass
-
-                used_gb = round(disk_usage_bytes / (1024 ** 3), 2)
+                    used_space = 0.0
                 local_vms.append({
                     'vm_name': item.name,
                     'host_name': item.runtime.host.name if item.runtime.host else 'Unknown',
                     'platform': 'vCenter',
-                    'used_gb': used_gb,
+                    'used_gb': round(used_space, 2),
                     'power_state': str(item.runtime.powerState)
                 })
             elif isinstance(item, vim.Datacenter):
