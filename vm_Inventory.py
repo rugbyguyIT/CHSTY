@@ -8,27 +8,36 @@ import datetime
 from pyVim.connect import SmartConnect, Disconnect
 from pyVmomi import vim
 
-# Ignore SSL warnings
 requests.packages.urllib3.disable_warnings()
 ssl._create_default_https_context = ssl._create_unverified_context
 
 def get_vcenter_vms(host, user, password):
     vms = []
+
+    def collect_vms_from_folder(folder):
+        for item in folder.childEntity:
+            if isinstance(item, vim.Folder):
+                vms.extend(collect_vms_from_folder(item))
+            elif isinstance(item, vim.VirtualMachine):
+                used_space = sum([d.committed for d in item.storage.perDatastoreUsage]) / (1024 ** 3)
+                vms.append({
+                    'vm_name': item.name,
+                    'host_name': item.runtime.host.name if item.runtime.host else 'Unknown',
+                    'platform': 'vCenter',
+                    'used_gb': round(used_space, 2),
+                    'power_state': str(item.runtime.powerState)
+                })
+            elif isinstance(item, vim.Datacenter):
+                vms.extend(collect_vms_from_folder(item.vmFolder))
+        return vms
+
     try:
         service_instance = SmartConnect(host=host, user=user, pwd=password)
         atexit.register(Disconnect, service_instance)
         content = service_instance.RetrieveContent()
-        for datacenter in content.rootFolder.childEntity:
-            for vm in datacenter.vmFolder.recursiveFindByType('VirtualMachine'):
-                if isinstance(vm, vim.VirtualMachine):
-                    used_space = sum([d.committed for d in vm.storage.perDatastoreUsage]) / (1024 ** 3)
-                    vms.append({
-                        'vm_name': vm.name,
-                        'host_name': vm.runtime.host.name if vm.runtime.host else 'Unknown',
-                        'platform': 'vCenter',
-                        'used_gb': round(used_space, 2),
-                        'power_state': str(vm.runtime.powerState)
-                    })
+        for dc in content.rootFolder.childEntity:
+            if isinstance(dc, vim.Datacenter):
+                vms.extend(collect_vms_from_folder(dc.vmFolder))
     except Exception as e:
         print(f"[vCenter] Error on {host}: {e}")
     return vms
@@ -132,3 +141,4 @@ if __name__ == "__main__":
 
     print(f"\nInventory complete. Found {len(all_vms)} VMs total.")
     write_to_csv(all_vms, company_name)
+
