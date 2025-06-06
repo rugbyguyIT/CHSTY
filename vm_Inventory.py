@@ -18,12 +18,27 @@ def get_vcenter_vms(host, user, password):
             if isinstance(item, vim.Folder):
                 local_vms.extend(collect_vms_from_folder(item))
             elif isinstance(item, vim.VirtualMachine):
-                used_space = sum([d.committed for d in item.storage.perDatastoreUsage]) / (1024 ** 3)
+                disk_usage_bytes = 0
+                try:
+                    for dev in item.config.hardware.device:
+                        if isinstance(dev, vim.vm.device.VirtualDisk):
+                            backing = dev.backing
+                            # Skip delta/snapshot disks
+                            if hasattr(backing, 'parent') and backing.parent:
+                                continue
+                            if hasattr(backing, 'fileName'):
+                                # Use allocated size if available
+                                if hasattr(backing, 'capacityInBytes'):
+                                    disk_usage_bytes += backing.capacityInBytes
+                except:
+                    pass
+
+                used_gb = round(disk_usage_bytes / (1024 ** 3), 2)
                 local_vms.append({
                     'vm_name': item.name,
                     'host_name': item.runtime.host.name if item.runtime.host else 'Unknown',
                     'platform': 'vCenter',
-                    'used_gb': round(used_space, 2),
+                    'used_gb': used_gb,
                     'power_state': str(item.runtime.powerState)
                 })
             elif isinstance(item, vim.Datacenter):
@@ -35,14 +50,11 @@ def get_vcenter_vms(host, user, password):
         service_instance = SmartConnect(host=host, user=user, pwd=password)
         atexit.register(Disconnect, service_instance)
         content = service_instance.RetrieveContent()
-
         for dc in content.rootFolder.childEntity:
             if isinstance(dc, vim.Datacenter):
                 all_vms.extend(collect_vms_from_folder(dc.vmFolder))
-
     except Exception as e:
         print(f"[vCenter] Error on {host}: {e}")
-
     return all_vms
 
 def get_hyperv_vms(host, user, password):
