@@ -12,15 +12,14 @@ requests.packages.urllib3.disable_warnings()
 ssl._create_default_https_context = ssl._create_unverified_context
 
 def get_vcenter_vms(host, user, password):
-    vms = []
-
     def collect_vms_from_folder(folder):
+        local_vms = []
         for item in folder.childEntity:
             if isinstance(item, vim.Folder):
-                vms.extend(collect_vms_from_folder(item))
+                local_vms.extend(collect_vms_from_folder(item))
             elif isinstance(item, vim.VirtualMachine):
                 used_space = sum([d.committed for d in item.storage.perDatastoreUsage]) / (1024 ** 3)
-                vms.append({
+                local_vms.append({
                     'vm_name': item.name,
                     'host_name': item.runtime.host.name if item.runtime.host else 'Unknown',
                     'platform': 'vCenter',
@@ -28,19 +27,23 @@ def get_vcenter_vms(host, user, password):
                     'power_state': str(item.runtime.powerState)
                 })
             elif isinstance(item, vim.Datacenter):
-                vms.extend(collect_vms_from_folder(item.vmFolder))
-        return vms
+                local_vms.extend(collect_vms_from_folder(item.vmFolder))
+        return local_vms
 
+    all_vms = []
     try:
         service_instance = SmartConnect(host=host, user=user, pwd=password)
         atexit.register(Disconnect, service_instance)
         content = service_instance.RetrieveContent()
+
         for dc in content.rootFolder.childEntity:
             if isinstance(dc, vim.Datacenter):
-                vms.extend(collect_vms_from_folder(dc.vmFolder))
+                all_vms.extend(collect_vms_from_folder(dc.vmFolder))
+
     except Exception as e:
         print(f"[vCenter] Error on {host}: {e}")
-    return vms
+
+    return all_vms
 
 def get_hyperv_vms(host, user, password):
     vms = []
@@ -141,4 +144,3 @@ if __name__ == "__main__":
 
     print(f"\nInventory complete. Found {len(all_vms)} VMs total.")
     write_to_csv(all_vms, company_name)
-
