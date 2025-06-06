@@ -19,16 +19,18 @@ def get_vcenter_vms(host, user, password):
                 local_vms.extend(collect_vms_from_folder(item))
             elif isinstance(item, vim.VirtualMachine):
                 try:
-                    # Best available API metric for actual space used
-                    used_space = item.storage.usedSpace / (1024 ** 3)  # bytes to GB
+                    used_space = sum([d.committed for d in item.storage.perDatastoreUsage]) / (1024 ** 3)
+                    has_snapshot = hasattr(item, 'snapshot') and item.snapshot is not None
                 except:
                     used_space = 0.0
+                    has_snapshot = False
                 local_vms.append({
                     'vm_name': item.name,
                     'host_name': item.runtime.host.name if item.runtime.host else 'Unknown',
                     'platform': 'vCenter',
                     'used_gb': round(used_space, 2),
-                    'power_state': str(item.runtime.powerState)
+                    'power_state': str(item.runtime.powerState),
+                    'has_snapshot': has_snapshot
                 })
             elif isinstance(item, vim.Datacenter):
                 local_vms.extend(collect_vms_from_folder(item.vmFolder))
@@ -66,7 +68,8 @@ def get_hyperv_vms(host, user, password):
                     'host_name': host,
                     'platform': 'Hyper-V',
                     'used_gb': round(used_bytes / (1024 ** 3), 2),
-                    'power_state': 'Running' if vm.EnabledState == 2 else 'Off'
+                    'power_state': 'Running' if vm.EnabledState == 2 else 'Off',
+                    'has_snapshot': "N/A"
                 })
     except Exception as e:
         print(f"[Hyper-V] Error on {host}: {e}")
@@ -89,7 +92,8 @@ def get_ahv_vms(cluster_ip, user, password):
                 'host_name': cluster_ip,
                 'platform': 'AHV',
                 'used_gb': round(usage_bytes / (1024 ** 3), 2),
-                'power_state': vm['status']['resources'].get('power_state', 'UNKNOWN')
+                'power_state': vm['status']['resources'].get('power_state', 'UNKNOWN'),
+                'has_snapshot': "N/A"
             })
     except Exception as e:
         print(f"[AHV] Error on {cluster_ip}: {e}")
@@ -114,7 +118,7 @@ def write_to_csv(vms, company_name):
     timestamp = now.strftime("%Y%m%d_%I_%M%p")
     filename = f"{company_name}_vm_inventory_{timestamp}.csv"
     with open(filename, mode='w', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=["vm_name", "host_name", "platform", "used_gb", "power_state"])
+        writer = csv.DictWriter(file, fieldnames=["vm_name", "host_name", "platform", "used_gb", "power_state", "has_snapshot"])
         writer.writeheader()
         for vm in vms:
             writer.writerow(vm)
